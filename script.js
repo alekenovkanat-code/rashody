@@ -57,6 +57,22 @@ function render() {
     }
   }
   const total = [...totals.values()].reduce((sum, value) => sum + value, 0n);
+  const limits = Object.values(budgets[month] || {});
+  const budgetTotal = limits.reduce((sum, minor) => sum + BigInt(minor), 0n);
+  document.querySelector("#budget-total").textContent = !budgetReadable
+    ? "Бюджет недоступен"
+    : limits.length ? `Общий бюджет: ${formatTotal(budgetTotal)}` : "Бюджет не задан";
+  const budgetCount = document.querySelector("#budget-count");
+  budgetCount.hidden = !budgetReadable;
+  budgetCount.textContent = `Лимиты заданы: ${limits.length} из 4`;
+  document.querySelector("#budget-spent").textContent = `Потрачено: ${formatTotal(total)}`;
+  const budgetRemaining = document.querySelector("#budget-remaining");
+  const budgetBalance = budgetTotal - total;
+  budgetRemaining.hidden = !budgetReadable || limits.length === 0;
+  budgetRemaining.className = budgetBalance < 0n ? "limit-overrun" : "";
+  budgetRemaining.textContent = budgetRemaining.hidden ? "" : budgetBalance < 0n
+    ? `Перерасход ${formatTotal(-budgetBalance)}`
+    : `Осталось ${formatTotal(budgetBalance)}`;
   for (const [category, spent] of totals) {
     const { spending, remaining } = limitIndicators.get(category);
     spending.textContent = `Потрачено: ${formatTotal(spent)}`;
