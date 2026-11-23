@@ -2,6 +2,11 @@
 
 const STORAGE_KEY = "rashody.expenses.v1";
 const categories = ["Еда", "Транспорт", "Жилье", "Другое"];
+const BUDGET_KEY = "rashody.budgets.v1";
+let budgets = {};
+let budgetReadable = true;
+let budgetMonth = "";
+const budgetStatus = document.querySelector("#budget-status");
 const form = document.querySelector("#expense-form");
 const amountInput = document.querySelector("#amount");
 const dateInput = document.querySelector("#date");
@@ -43,6 +48,7 @@ function formatTotal(total) {
 function render() {
   const now = new Date();
   const month = localDate(now).slice(0, 7);
+  renderLimits(month, now);
   const totals = new Map(categories.map(category => [category, 0n]));
   for (const expense of expenses) {
     if (expense.date.slice(0, 7) === month) {
@@ -100,6 +106,107 @@ try {
 } catch {
   storageReadable = false;
   status.textContent = "Не удалось прочитать сохраненные траты. Проверьте доступ к хранилищу браузера; данные не перезаписаны.";
+}
+
+try {
+  const saved = localStorage.getItem(BUDGET_KEY);
+  if (saved !== null) {
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
+        !Object.entries(parsed).every(([month, limits]) =>
+          validDate(`${month}-01`) && month.length === 7 &&
+          limits && typeof limits === "object" && !Array.isArray(limits) &&
+          Object.entries(limits).every(([category, minor]) => categories.includes(category) && Number.isSafeInteger(minor) && minor > 0))) {
+      throw new Error("Invalid saved budgets");
+    }
+    budgets = parsed;
+  }
+} catch {
+  budgetReadable = false;
+  budgetStatus.textContent = "Не удалось прочитать лимиты. Данные не перезаписаны; сохранение лимитов недоступно. Траты можно добавлять.";
+}
+
+function renderLimits(month, now) {
+  // Не пересоздаем поля при обновлении расходов: несохраненный ввод остается на месте.
+  if (budgetMonth === month) return;
+  budgetMonth = month;
+  document.querySelector("#budget-month").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(now);
+  const container = document.querySelector("#budget-limits");
+  container.replaceChildren();
+  categories.forEach((category, index) => {
+    const name = category === "Жилье" ? "Дом" : category;
+    const limitForm = document.createElement("form");
+    limitForm.className = "limit-form";
+    limitForm.noValidate = true;
+    const heading = document.createElement("h3");
+    heading.textContent = name;
+    const value = document.createElement("p");
+    value.className = "limit-value";
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.id = `limit-${index}`;
+    input.type = "text";
+    input.inputMode = "decimal";
+    input.placeholder = "10 000";
+    label.htmlFor = input.id;
+    label.textContent = `Лимит: ${name}, ₸`;
+    const error = document.createElement("p");
+    error.id = `${input.id}-error`;
+    error.className = "error";
+    error.setAttribute("aria-live", "polite");
+    input.setAttribute("aria-describedby", error.id);
+    const actions = document.createElement("div");
+    actions.className = "limit-actions";
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.textContent = "Сохранить";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "limit-remove";
+    remove.textContent = "Убрать лимит";
+    function refresh() {
+      const minor = budgets[month]?.[category];
+      value.textContent = minor === undefined ? "Лимит не задан" : `Лимит: ${formatTotal(BigInt(minor))}`;
+      input.value = minor === undefined ? "" : money.format(minor / 100).replace(/[\u00a0\u202f]/g, " ");
+      remove.hidden = minor === undefined;
+    }
+    function persist(minor) {
+      const currentMonth = localDate(new Date()).slice(0, 7);
+      if (currentMonth !== month) {
+        render();
+        budgetStatus.textContent = "Начался новый месяц. Задайте лимит заново.";
+        return;
+      }
+      if (!budgetReadable) return;
+      const limits = { ...budgets[month] };
+      if (minor === null) delete limits[category];
+      else limits[category] = minor;
+      const next = { ...budgets, [month]: limits };
+      try {
+        localStorage.setItem(BUDGET_KEY, JSON.stringify(next));
+      } catch {
+        budgetStatus.textContent = "Не удалось сохранить лимит. Проверьте свободное место и доступ к хранилищу браузера.";
+        return;
+      }
+      budgets = next;
+      showError(input, "");
+      refresh();
+      budgetStatus.textContent = minor === null ? `Лимит «${name}» убран.` : `Лимит «${name}» сохранен.`;
+    }
+    limitForm.addEventListener("submit", event => {
+      event.preventDefault();
+      const minor = parseAmount(input.value);
+      showError(input, minor === null ? "Введите сумму больше нуля, например 10 000 или 1 250,50." : "");
+      if (minor === null) { input.focus(); return; }
+      persist(minor);
+    });
+    remove.addEventListener("click", () => persist(null));
+    input.disabled = save.disabled = remove.disabled = !budgetReadable;
+    actions.append(save, remove);
+    limitForm.append(heading, value, label, input, error, actions);
+    container.append(limitForm);
+    refresh();
+  });
 }
 
 dateInput.value = localDate(new Date());

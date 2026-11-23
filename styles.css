@@ -38,4 +38,15 @@ li:last-child { padding-bottom: 0; }
 .expense-date { display: block; color: #65756c; font-size: 13px; margin-top: 4px; }
 .expense-comment { margin: 10px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 footer { text-align: center; font-size: 12px; margin: 24px 0; }
+.budget { margin-bottom: 22px; }
+.budget h2 { margin-bottom: 8px; }
+#budget-month { color: #58695f; margin-top: 0; }
+.limit-form { border-top: 1px solid #e6ebe4; padding: 18px 0; }
+.limit-form h3 { margin: 0 0 10px; font-size: 16px; }
+.limit-value { overflow-wrap: anywhere; }
+.limit-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.limit-actions button { flex: 1 1 140px; margin-top: 12px; }
+.limit-remove { background: #e0ece3; color: #20332e; }
+.limit-remove:hover { background: #cbded0; }
+#budget-status:empty { display: none; }
 @media (max-width: 520px) { main { margin-top: 28px; } .card { padding: 22px 18px; } .fields { grid-template-columns: 1fr; gap: 16px; } .summary { padding: 22px 18px; flex-wrap: wrap; } }
