@@ -6,6 +6,7 @@ const BUDGET_KEY = "rashody.budgets.v1";
 let budgets = {};
 let budgetReadable = true;
 let budgetMonth = "";
+const limitIndicators = new Map();
 const budgetStatus = document.querySelector("#budget-status");
 const form = document.querySelector("#expense-form");
 const amountInput = document.querySelector("#amount");
@@ -56,6 +57,17 @@ function render() {
     }
   }
   const total = [...totals.values()].reduce((sum, value) => sum + value, 0n);
+  for (const [category, spent] of totals) {
+    const { spending, remaining } = limitIndicators.get(category);
+    spending.textContent = `Потрачено: ${formatTotal(spent)}`;
+    const limit = budgets[month]?.[category];
+    remaining.hidden = limit === undefined;
+    const balance = limit === undefined ? 0n : BigInt(limit) - spent;
+    remaining.className = balance < 0n ? "limit-remaining limit-overrun" : "limit-remaining";
+    remaining.textContent = limit === undefined ? "" : balance < 0n
+      ? `Перерасход ${formatTotal(-balance)}`
+      : `Осталось ${formatTotal(balance)}`;
+  }
   document.querySelector("#total").textContent = formatTotal(total);
   const categoryTotals = document.querySelector("#category-totals");
   categoryTotals.replaceChildren();
@@ -133,6 +145,7 @@ function renderLimits(month, now) {
   document.querySelector("#budget-month").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(now);
   const container = document.querySelector("#budget-limits");
   container.replaceChildren();
+  limitIndicators.clear();
   categories.forEach((category, index) => {
     const name = category === "Жилье" ? "Дом" : category;
     const limitForm = document.createElement("form");
@@ -142,6 +155,13 @@ function renderLimits(month, now) {
     heading.textContent = name;
     const value = document.createElement("p");
     value.className = "limit-value";
+    const indicators = document.createElement("div");
+    indicators.setAttribute("aria-live", "polite");
+    const spending = document.createElement("p");
+    spending.className = "limit-spending";
+    const remaining = document.createElement("p");
+    indicators.append(spending, remaining);
+    limitIndicators.set(category, { spending, remaining });
     const label = document.createElement("label");
     const input = document.createElement("input");
     input.id = `limit-${index}`;
@@ -191,6 +211,7 @@ function renderLimits(month, now) {
       budgets = next;
       showError(input, "");
       refresh();
+      render();
       budgetStatus.textContent = minor === null ? `Лимит «${name}» убран.` : `Лимит «${name}» сохранен.`;
     }
     limitForm.addEventListener("submit", event => {
@@ -203,7 +224,7 @@ function renderLimits(month, now) {
     remove.addEventListener("click", () => persist(null));
     input.disabled = save.disabled = remove.disabled = !budgetReadable;
     actions.append(save, remove);
-    limitForm.append(heading, value, label, input, error, actions);
+    limitForm.append(heading, value, indicators, label, input, error, actions);
     container.append(limitForm);
     refresh();
   });

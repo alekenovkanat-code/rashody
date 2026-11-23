@@ -44,6 +44,8 @@ footer { text-align: center; font-size: 12px; margin: 24px 0; }
 .limit-form { border-top: 1px solid #e6ebe4; padding: 18px 0; }
 .limit-form h3 { margin: 0 0 10px; font-size: 16px; }
 .limit-value { overflow-wrap: anywhere; }
+.limit-spending, .limit-remaining { margin: 8px 0; overflow-wrap: anywhere; }
+.limit-overrun { color: #a52c20; font-weight: 700; }
 .limit-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .limit-actions button { flex: 1 1 140px; margin-top: 12px; }
 .limit-remove { background: #e0ece3; color: #20332e; }
