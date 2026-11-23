@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Учет расходов</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><p class="eyebrow">Личные финансы</p><h1>Учет расходов</h1><p>Записывайте траты — следите за месяцем.</p></header>
+    <section class="card" aria-labelledby="form-title">
+      <h2 id="form-title">Добавить трату</h2>
+      <form id="expense-form" novalidate>
+        <div class="fields">
+          <div><label for="amount">Сумма, ₸</label><input id="amount" name="amount" type="text" inputmode="decimal" placeholder="5 000" required aria-describedby="amount-error"><p class="error" id="amount-error" aria-live="polite"></p></div>
+          <div><label for="category">Категория</label><select id="category" name="category" required><option value="Еда">Еда</option><option value="Транспорт">Транспорт</option><option value="Жилье">Жилье</option><option value="Другое">Другое</option></select></div>
+          <div><label for="date">Дата</label><input id="date" name="date" type="date" required aria-describedby="date-error"><p class="error" id="date-error" aria-live="polite"></p></div>
+          <div><label for="comment">Комментарий <span>(необязательно)</span></label><input id="comment" name="comment" type="text" placeholder="На что потратили"></div>
+        </div>
+        <button type="submit">Добавить</button>
+        <p id="status" role="status"></p>
+      </form>
+    </section>
+    <section class="summary" aria-labelledby="month-title"><div><h2 id="month-title">За текущий месяц</h2><p id="month-label"></p></div><p id="total" aria-live="polite">0 ₸</p></section>
+    <section class="card" aria-labelledby="list-title"><h2 id="list-title">Все траты</h2><p id="empty">Пока нет трат. Добавьте первую.</p><ul id="expenses"></ul></section>
+    <footer>Данные хранятся только в этом браузере.</footer>
+  </main>
+</body>
+</html>
