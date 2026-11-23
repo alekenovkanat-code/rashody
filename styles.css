@@ -26,6 +26,10 @@ button:hover { background: #194f3c; }
 .summary h2 { margin-bottom: 4px; font-size: 16px; }
 #month-label { margin: 0; font-size: 14px; }
 #total { margin: 0; font-size: clamp(24px, 5vw, 32px); font-weight: 750; overflow-wrap: anywhere; }
+.category-summary { margin-bottom: 22px; }
+#category-totals { margin: 0; }
+#category-totals > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 12px 0; border-top: 1px solid #e6ebe4; }
+#category-totals dd { margin: 0; text-align: right; font-weight: 650; overflow-wrap: anywhere; }
 ul { list-style: none; margin: 0; padding: 0; }
 li { border-top: 1px solid #e6ebe4; padding: 18px 0; }
 li:last-child { padding-bottom: 0; }

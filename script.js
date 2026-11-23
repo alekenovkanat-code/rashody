@@ -34,13 +34,34 @@ function formatMoney(minor) {
   return `${money.format(minor / 100).replace(/[\u00a0\u202f]/g, " ")} ₸`;
 }
 
+function formatTotal(total) {
+  const whole = total / 100n;
+  const fraction = Number(total % 100n);
+  return `${money.format(whole).replace(/[\u00a0\u202f]/g, " ")}${fraction ? `,${String(fraction).padStart(2, "0")}` : ""} ₸`;
+}
+
 function render() {
   const now = new Date();
   const month = localDate(now).slice(0, 7);
-  const total = expenses.reduce((sum, expense) => expense.date.slice(0, 7) === month ? sum + BigInt(expense.minor) : sum, 0n);
-  const whole = total / 100n;
-  const fraction = Number(total % 100n);
-  document.querySelector("#total").textContent = `${money.format(whole).replace(/[\u00a0\u202f]/g, " ")}${fraction ? `,${String(fraction).padStart(2, "0")}` : ""} ₸`;
+  const totals = new Map(categories.map(category => [category, 0n]));
+  for (const expense of expenses) {
+    if (expense.date.slice(0, 7) === month) {
+      totals.set(expense.category, totals.get(expense.category) + BigInt(expense.minor));
+    }
+  }
+  const total = [...totals.values()].reduce((sum, value) => sum + value, 0n);
+  document.querySelector("#total").textContent = formatTotal(total);
+  const categoryTotals = document.querySelector("#category-totals");
+  categoryTotals.replaceChildren();
+  for (const [category, amount] of totals) {
+    const row = document.createElement("div");
+    const label = document.createElement("dt");
+    label.textContent = category === "Жилье" ? "Дом" : category;
+    const value = document.createElement("dd");
+    value.textContent = formatTotal(amount);
+    row.append(label, value);
+    categoryTotals.append(row);
+  }
   document.querySelector("#month-label").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(now);
   document.querySelector("#empty").hidden = expenses.length > 0;
   const list = document.querySelector("#expenses");
