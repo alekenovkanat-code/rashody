@@ -76,10 +76,17 @@ function render() {
     ? `Перерасход ${formatTotal(-budgetBalance)}`
     : `Осталось ${formatTotal(budgetBalance)}`;
   for (const [category, spent] of totals) {
-    const { spending, remaining } = limitIndicators.get(category);
+    const { spending, remaining, progress, usage } = limitIndicators.get(category);
     spending.textContent = `Потрачено: ${formatTotal(spent)}`;
     const limit = budgets[month]?.[category];
     remaining.hidden = limit === undefined;
+    progress.hidden = usage.hidden = limit === undefined;
+    if (limit !== undefined) {
+      const percent = BigInt(limit) > 0n ? spent * 100n / BigInt(limit) : 0n;
+      progress.value = Number(percent > 100n ? 100n : percent);
+      usage.textContent = `Использовано ${percent}%`;
+      progress.setAttribute("aria-label", `Использовано лимита: ${category}`);
+    }
     const balance = limit === undefined ? 0n : BigInt(limit) - spent;
     remaining.className = balance < 0n ? "limit-remaining limit-overrun" : "limit-remaining";
     remaining.textContent = limit === undefined ? "" : balance < 0n
@@ -107,7 +114,7 @@ function render() {
     const heading = document.createElement("div");
     heading.className = "expense-heading";
     const category = document.createElement("span");
-    category.textContent = expense.category;
+    category.textContent = expense.category === "Жилье" ? "Дом" : expense.category;
     const amount = document.createElement("strong");
     amount.textContent = formatMoney(expense.minor);
     heading.append(category, amount);
@@ -191,7 +198,12 @@ function renderLimits(month, now) {
     spending.className = "limit-spending";
     const remaining = document.createElement("p");
     indicators.append(spending, remaining);
-    limitIndicators.set(category, { spending, remaining });
+    const progress = document.createElement("progress");
+    progress.max = 100;
+    const usage = document.createElement("p");
+    usage.className = "limit-usage";
+    indicators.append(progress, usage);
+    limitIndicators.set(category, { spending, remaining, progress, usage });
     const label = document.createElement("label");
     const input = document.createElement("input");
     input.id = `limit-${index}`;
@@ -254,7 +266,11 @@ function renderLimits(month, now) {
     remove.addEventListener("click", () => persist(null));
     input.disabled = save.disabled = remove.disabled = !budgetReadable;
     actions.append(save, remove);
-    limitForm.append(heading, value, indicators, label, input, error, actions);
+    const settings = document.createElement("details");
+    const toggle = document.createElement("summary");
+    toggle.textContent = "Настроить лимит";
+    settings.append(toggle, label, input, error, actions);
+    limitForm.append(heading, value, indicators, settings);
     container.append(limitForm);
     refresh();
   });
