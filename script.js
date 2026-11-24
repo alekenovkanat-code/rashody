@@ -6,6 +6,7 @@ const BUDGET_KEY = "rashody.budgets.v1";
 let budgets = {};
 let budgetReadable = true;
 let budgetMonth = "";
+let selectedMonth = null;
 const limitIndicators = new Map();
 const budgetStatus = document.querySelector("#budget-status");
 const form = document.querySelector("#expense-form");
@@ -50,8 +51,10 @@ function formatTotal(total) {
 
 function render() {
   const now = new Date();
-  const month = localDate(now).slice(0, 7);
-  renderLimits(month, now);
+  const month = selectedMonth || localDate(now).slice(0, 7);
+  const periodDate = new Date(`${month}-01T12:00:00`);
+  document.querySelector("#selected-month").value = month;
+  renderLimits(month, periodDate);
   const totals = new Map(categories.map(category => [category, 0n]));
   for (const expense of expenses) {
     if (expense.date.slice(0, 7) === month) {
@@ -105,11 +108,13 @@ function render() {
     row.append(label, value);
     categoryTotals.append(row);
   }
-  document.querySelector("#month-label").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(now);
-  document.querySelector("#empty").hidden = expenses.length > 0;
+  document.querySelector("#month-label").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(periodDate);
+  const visibleExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month);
+  document.querySelector("#empty").textContent = "В этом месяце пока нет трат.";
+  document.querySelector("#empty").hidden = visibleExpenses.length > 0;
   const list = document.querySelector("#expenses");
   list.replaceChildren();
-  for (const expense of expenses) {
+  for (const expense of visibleExpenses) {
     const item = document.createElement("li");
     const heading = document.createElement("div");
     heading.className = "expense-heading";
@@ -233,7 +238,7 @@ function renderLimits(month, now) {
       remove.hidden = minor === undefined;
     }
     function persist(minor) {
-      const currentMonth = localDate(new Date()).slice(0, 7);
+      const currentMonth = selectedMonth || localDate(new Date()).slice(0, 7);
       if (currentMonth !== month) {
         render();
         budgetStatus.textContent = "Начался новый месяц. Задайте лимит заново.";
@@ -306,7 +311,7 @@ form.addEventListener("submit", event => {
   clearUndo();
   cancelEdit();
   render();
-  status.textContent = wasEditing ? "Трата изменена." : "Трата добавлена.";
+  status.textContent = (wasEditing ? "Трата изменена." : "Трата добавлена.") + (updated.date.slice(0, 7) !== (selectedMonth || localDate(new Date()).slice(0, 7)) ? " Она относится к другому месяцу." : "");
   amountInput.focus();
 });
 
@@ -364,3 +369,18 @@ document.querySelector("#undo-delete").addEventListener("click", () => {
   clearUndo(); render(); status.textContent = "Трата восстановлена.";
   amountInput.focus();
 });
+
+function changeMonth(month) {
+  if (!validDate(month + "-01") || month.length !== 7) {
+    document.querySelector("#selected-month").value = selectedMonth || localDate(new Date()).slice(0, 7);
+    status.textContent = "Выберите корректный месяц.";
+    return;
+  }
+  selectedMonth = month === localDate(new Date()).slice(0, 7) ? null : month;
+  cancelEdit();
+  dateInput.value = selectedMonth ? month + "-01" : localDate(new Date());
+  render();
+  status.textContent = "Показан выбранный месяц.";
+}
+document.querySelector("#selected-month").addEventListener("change", event => changeMonth(event.target.value));
+document.querySelector("#current-month").addEventListener("click", () => changeMonth(localDate(new Date()).slice(0, 7)));

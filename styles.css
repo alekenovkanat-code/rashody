@@ -72,3 +72,7 @@ progress::-webkit-progress-value { background: #23674f; }
 summary { min-height: 44px; padding: 12px 0; cursor: pointer; font-weight: 600; color: #23674f; }
 summary:focus-visible { outline: 3px solid #9bc6b6; outline-offset: 3px; }
 .limit-value { margin: 6px 0; color: #58695f; }
+
+.month-controls { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.month-controls > div { flex: 1 1 180px; }
+.month-controls button { width: auto; flex: 1 1 150px; margin: 0; }
