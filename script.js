@@ -17,6 +17,8 @@ const status = document.querySelector("#status");
 const money = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
 let expenses = [];
 let storageReadable = true;
+let editingExpense = null;
+let deletedExpense = null;
 
 function localDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -120,6 +122,18 @@ function render() {
       comment.textContent = expense.comment;
       item.append(comment);
     }
+    const actions = document.createElement("div");
+    actions.className = "expense-actions";
+    for (const [title, action] of [["Изменить", () => startEdit(expense)], ["Удалить", () => deleteExpense(expense)]]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary";
+      button.textContent = title;
+      button.disabled = !storageReadable;
+      button.addEventListener("click", action);
+      actions.append(button);
+    }
+    item.append(actions);
     list.append(item);
   }
 }
@@ -269,21 +283,68 @@ form.addEventListener("submit", event => {
     status.textContent = "Сохранение недоступно: сначала восстановите доступ к сохраненным данным браузера.";
     return;
   }
-  const next = [{ minor, category: categoryInput.value, date: dateInput.value, comment: commentInput.value.trim() }, ...expenses];
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    status.textContent = "Не удалось сохранить трату. Проверьте свободное место и доступ к хранилищу браузера.";
-    return;
-  }
-  expenses = next;
+  const updated = { minor, category: categoryInput.value, date: dateInput.value, comment: commentInput.value.trim() };
+  const wasEditing = editingExpense !== null;
+  const next = wasEditing ? expenses.map(item => item === editingExpense ? updated : item) : [updated, ...expenses];
+  if (!saveExpenses(next)) return;
+  clearUndo();
+  cancelEdit();
   render();
-  amountInput.value = "";
-  commentInput.value = "";
-  status.textContent = "Трата добавлена.";
+  status.textContent = wasEditing ? "Трата изменена." : "Трата добавлена.";
   amountInput.focus();
 });
 
 window.addEventListener("focus", render);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 setInterval(render, 60000);
+
+function saveExpenses(next) {
+  if (!storageReadable) return false;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
+  catch { status.textContent = "Не удалось сохранить траты. Проверьте доступ к хранилищу браузера."; return false; }
+  expenses = next;
+  return true;
+}
+function cancelEdit() {
+  editingExpense = null;
+  amountInput.value = commentInput.value = "";
+  showError(amountInput, ""); showError(dateInput, "");
+  document.querySelector("#form-title").textContent = "Добавить трату";
+  document.querySelector("#save-expense").textContent = "Добавить";
+  document.querySelector("#cancel-edit").hidden = true;
+}
+function startEdit(expense) {
+  editingExpense = expense;
+  amountInput.value = money.format(expense.minor / 100);
+  categoryInput.value = expense.category;
+  dateInput.value = expense.date;
+  commentInput.value = expense.comment;
+  showError(amountInput, ""); showError(dateInput, "");
+  document.querySelector("#form-title").textContent = "Изменить трату";
+  document.querySelector("#save-expense").textContent = "Сохранить изменения";
+  document.querySelector("#cancel-edit").hidden = false;
+  status.textContent = "";
+  amountInput.focus();
+}
+function clearUndo() {
+  deletedExpense = null;
+  document.querySelector("#undo-panel").hidden = true;
+}
+function deleteExpense(expense) {
+  const index = expenses.indexOf(expense);
+  if (index < 0 || !saveExpenses(expenses.filter(item => item !== expense))) return;
+  deletedExpense = { expense, index };
+  if (editingExpense === expense) cancelEdit();
+  document.querySelector("#undo-panel").hidden = false;
+  render();
+  document.querySelector("#undo-delete").focus();
+}
+document.querySelector("#cancel-edit").addEventListener("click", () => { cancelEdit(); amountInput.focus(); });
+document.querySelector("#undo-delete").addEventListener("click", () => {
+  if (!deletedExpense) return;
+  const next = [...expenses];
+  next.splice(deletedExpense.index, 0, deletedExpense.expense);
+  if (!saveExpenses(next)) return;
+  clearUndo(); render(); status.textContent = "Трата восстановлена.";
+  amountInput.focus();
+});
