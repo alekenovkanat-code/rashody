@@ -89,3 +89,5 @@ input[type="file"] { font-size: 14px; }
 .day-heading { border: none; padding: 22px 0 8px; }
 .day-heading h3 { margin: 0; font-size: 14px; color: #58695f; }
 @media (max-width: 520px) { .history-filters { grid-template-columns: 1fr; } }
+
+#copy-budget { margin: 0 0 16px; }

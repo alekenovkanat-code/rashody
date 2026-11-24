@@ -475,3 +475,24 @@ document.querySelector("#confirm-import").addEventListener("click", () => {
 
 for (const id of ["#search-expenses", "#filter-category"]) { document.querySelector(id).addEventListener("input", render); }
 document.querySelector("#reset-filters").addEventListener("click", () => { document.querySelector("#search-expenses").value = document.querySelector("#filter-category").value = ""; render(); });
+
+function previousMonth(month) {
+  const [year, number] = month.split("-").map(Number);
+  return number === 1 ? String(year - 1).padStart(4, "0") + "-12" : String(year).padStart(4, "0") + "-" + String(number - 1).padStart(2, "0");
+}
+document.querySelector("#copy-budget").addEventListener("click", () => {
+  if (!budgetReadable) { budgetStatus.textContent = "Сначала восстановите доступ к данным бюджета."; return; }
+  const month = selectedMonth || localDate(new Date()).slice(0, 7);
+  const source = budgets[previousMonth(month)] || {};
+  const limits = { ...budgets[month] };
+  let count = 0;
+  for (const category of categories) {
+    if (limits[category] === undefined && source[category] !== undefined) { limits[category] = source[category]; count++; }
+  }
+  if (!count) { budgetStatus.textContent = "Нет лимитов для переноса. Заданные лимиты не меняются."; return; }
+  const next = { ...budgets, [month]: limits };
+  try { persistState(expenses, next); }
+  catch { budgetStatus.textContent = "Не удалось сохранить перенос. Лимиты не изменены."; return; }
+  budgets = next; budgetMonth = ""; render();
+  budgetStatus.textContent = "Лимитов перенесено: " + count + ". Уже заданные суммы сохранены.";
+});
