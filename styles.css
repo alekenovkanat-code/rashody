@@ -81,3 +81,11 @@ summary:focus-visible { outline: 3px solid #9bc6b6; outline-offset: 3px; }
 .backup > button { margin: 0 0 20px; }
 .backup p { color: #58695f; }
 input[type="file"] { font-size: 14px; }
+
+.history-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.history-filters > div { min-width: 0; }
+#reset-filters { width: auto; margin-top: 12px; }
+#found-total { color: #58695f; font-size: 14px; }
+.day-heading { border: none; padding: 22px 0 8px; }
+.day-heading h3 { margin: 0; font-size: 14px; color: #58695f; }
+@media (max-width: 520px) { .history-filters { grid-template-columns: 1fr; } }

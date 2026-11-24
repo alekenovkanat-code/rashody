@@ -110,12 +110,25 @@ function render() {
     categoryTotals.append(row);
   }
   document.querySelector("#month-label").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(periodDate);
-  const visibleExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month);
-  document.querySelector("#empty").textContent = "В этом месяце пока нет трат.";
+  const query = document.querySelector("#search-expenses").value.trim().toLocaleLowerCase("ru-RU");
+  const filterCategory = document.querySelector("#filter-category").value;
+  const visibleExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month && (!filterCategory || expense.category === filterCategory) && (!query || expense.comment.toLocaleLowerCase("ru-RU").includes(query))).sort((a, b) => b.date.localeCompare(a.date));
+  document.querySelector("#found-total").textContent = `Найдено: ${visibleExpenses.length} · ${formatTotal(visibleExpenses.reduce((sum, expense) => sum + BigInt(expense.minor), 0n))}`;
+  document.querySelector("#empty").textContent = query || filterCategory ? "По этим условиям трат нет." : "В этом месяце пока нет трат.";
   document.querySelector("#empty").hidden = visibleExpenses.length > 0;
   const list = document.querySelector("#expenses");
   list.replaceChildren();
+  let lastDay = "";
   for (const expense of visibleExpenses) {
+    if (lastDay !== expense.date) {
+      const day = document.createElement("li");
+      day.className = "day-heading";
+      const title = document.createElement("h3");
+      const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+      const prefix = expense.date === localDate(now) ? "Сегодня · " : expense.date === localDate(yesterday) ? "Вчера · " : "";
+      title.textContent = prefix + expense.date.split("-").reverse().join(".");
+      day.append(title); list.append(day); lastDay = expense.date;
+    }
     const item = document.createElement("li");
     const heading = document.createElement("div");
     heading.className = "expense-heading";
@@ -459,3 +472,6 @@ document.querySelector("#confirm-import").addEventListener("click", () => {
   render();
   document.querySelector("#backup-status").textContent = "Расходы и бюджеты восстановлены.";
 });
+
+for (const id of ["#search-expenses", "#filter-category"]) { document.querySelector(id).addEventListener("input", render); }
+document.querySelector("#reset-filters").addEventListener("click", () => { document.querySelector("#search-expenses").value = document.querySelector("#filter-category").value = ""; render(); });
