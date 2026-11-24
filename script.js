@@ -275,7 +275,7 @@ function renderLimits(month, now) {
       try {
         persistState(expenses, next);
       } catch {
-        budgetStatus.textContent = "Не удалось сохранить лимит. Проверьте свободное место и доступ к хранилищу браузера.";
+        budgetStatus.textContent = "Лимит не сохранен. Проверьте доступ к хранилищу и изменения в другой вкладке, затем повторите.";
         return;
       }
       budgets = next;
@@ -304,6 +304,7 @@ function renderLimits(month, now) {
   });
 }
 
+let storageVersion = readStorageVersion();
 dateInput.value = localDate(new Date());
 render();
 
@@ -338,14 +339,14 @@ form.addEventListener("submit", event => {
   amountInput.focus();
 });
 
-window.addEventListener("focus", render);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
+window.addEventListener("focus", () => { syncStorage(); render(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { syncStorage(); render(); } });
 setInterval(render, 60000);
 
 function saveExpenses(next) {
   if (!storageReadable) return false;
   try { persistState(next, budgets); }
-  catch { status.textContent = "Не удалось сохранить траты. Проверьте доступ к хранилищу браузера."; return false; }
+  catch { status.textContent = "Трата не сохранена. Проверьте сообщения о хранилище и изменения в другой вкладке, затем повторите."; return false; }
   expenses = next;
   return true;
 }
@@ -416,11 +417,13 @@ function validBudgets(items) {
 }
 function validBackup(data) { return data && data.version === 1 && validExpenses(data.expenses) && validBudgets(data.budgets); }
 function makeBackup(items = expenses, limits = budgets) { return { version: 1, expenses: items, budgets: limits }; }
-function persistState(items, limits) {
+function persistState(items, limits, replaceAll = false) {
+  if (!replaceAll && readStorageVersion() !== storageVersion) { syncStorage(); throw new Error("Storage changed"); }
   // Если старое хранилище частично повреждено, не затираем его новым снимком.
-  if (!budgetReadable && limits === budgets) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); return; }
-  if (!storageReadable && items === expenses) { localStorage.setItem(BUDGET_KEY, JSON.stringify(limits)); return; }
+  if (!replaceAll && !budgetReadable && limits === budgets) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); storageVersion = readStorageVersion(); return; }
+  if (!replaceAll && !storageReadable && items === expenses) { localStorage.setItem(BUDGET_KEY, JSON.stringify(limits)); storageVersion = readStorageVersion(); return; }
   localStorage.setItem(DATA_KEY, JSON.stringify(makeBackup(items, limits)));
+  storageVersion = readStorageVersion();
 }
 let pendingImport = null;
 let importRequest = 0;
@@ -463,7 +466,7 @@ document.querySelector("#import-file").addEventListener("change", async event =>
 document.querySelector("#cancel-import").addEventListener("click", cancelImport);
 document.querySelector("#confirm-import").addEventListener("click", () => {
   if (!pendingImport) return;
-  try { persistState(pendingImport.expenses, pendingImport.budgets); }
+  try { persistState(pendingImport.expenses, pendingImport.budgets, true); }
   catch { document.querySelector("#backup-status").textContent = "Не удалось восстановить копию. Текущие данные не изменены."; return; }
   expenses = pendingImport.expenses; budgets = pendingImport.budgets;
   storageReadable = budgetReadable = true;
@@ -496,3 +499,30 @@ document.querySelector("#copy-budget").addEventListener("click", () => {
   budgets = next; budgetMonth = ""; render();
   budgetStatus.textContent = "Лимитов перенесено: " + count + ". Уже заданные суммы сохранены.";
 });
+
+function readStorageVersion() {
+  try { return JSON.stringify([localStorage.getItem(DATA_KEY), localStorage.getItem(STORAGE_KEY), localStorage.getItem(BUDGET_KEY)]); }
+  catch { return null; }
+}
+function syncStorage() {
+  const version = readStorageVersion();
+  if (version === storageVersion) return;
+  try {
+    if (version === null) throw new Error("Storage unavailable");
+    const [snapshot, oldExpenses, oldBudgets] = JSON.parse(version);
+    const data = snapshot !== null ? JSON.parse(snapshot) : {version: 1, expenses: JSON.parse(oldExpenses || "[]"), budgets: JSON.parse(oldBudgets || "{}")};
+    if (!validBackup(data)) throw new Error("Invalid storage");
+    expenses = data.expenses; budgets = data.budgets;
+    storageReadable = budgetReadable = true;
+    cancelEdit(); clearUndo(); cancelImport(); budgetMonth = "";
+    storageVersion = version;
+    render();
+    budgetStatus.textContent = "";
+    status.textContent = "Данные обновлены из другой вкладки. Незавершенное изменение отменено; проверьте записи перед повторным сохранением.";
+  } catch {
+    storageReadable = budgetReadable = false;
+    budgetMonth = ""; render();
+    status.textContent = "Хранилище изменилось, но прочитать его не удалось. Сохранение отключено; восстановите корректную копию.";
+  }
+}
+window.addEventListener("storage", event => { if (event.key === null || [DATA_KEY, STORAGE_KEY, BUDGET_KEY].includes(event.key)) syncStorage(); });
