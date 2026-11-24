@@ -76,3 +76,8 @@ summary:focus-visible { outline: 3px solid #9bc6b6; outline-offset: 3px; }
 .month-controls { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
 .month-controls > div { flex: 1 1 180px; }
 .month-controls button { width: auto; flex: 1 1 150px; margin: 0; }
+
+.backup { margin-top: 22px; }
+.backup > button { margin: 0 0 20px; }
+.backup p { color: #58695f; }
+input[type="file"] { font-size: 14px; }

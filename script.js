@@ -3,6 +3,7 @@
 const STORAGE_KEY = "rashody.expenses.v1";
 const categories = ["Еда", "Транспорт", "Жилье", "Другое"];
 const BUDGET_KEY = "rashody.budgets.v1";
+const DATA_KEY = "rashody.data.v1";
 let budgets = {};
 let budgetReadable = true;
 let budgetMonth = "";
@@ -150,8 +151,16 @@ function render() {
   }
 }
 
+let savedSnapshot = null;
+let snapshotBroken = false;
 try {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const raw = localStorage.getItem(DATA_KEY);
+  if (raw !== null) { savedSnapshot = JSON.parse(raw); if (!validBackup(savedSnapshot)) throw new Error("Invalid snapshot"); }
+} catch { snapshotBroken = true; }
+
+try {
+  if (snapshotBroken) throw new Error("Invalid snapshot");
+  const saved = savedSnapshot ? JSON.stringify(savedSnapshot.expenses) : localStorage.getItem(STORAGE_KEY);
   if (saved !== null) {
     const parsed = JSON.parse(saved);
     if (!Array.isArray(parsed) || !parsed.every(item => item && Number.isSafeInteger(item.minor) && item.minor > 0 && categories.includes(item.category) && typeof item.date === "string" && validDate(item.date) && typeof item.comment === "string")) throw new Error("Invalid saved expenses");
@@ -163,7 +172,8 @@ try {
 }
 
 try {
-  const saved = localStorage.getItem(BUDGET_KEY);
+  if (snapshotBroken) throw new Error("Invalid snapshot");
+  const saved = savedSnapshot ? JSON.stringify(savedSnapshot.budgets) : localStorage.getItem(BUDGET_KEY);
   if (saved !== null) {
     const parsed = JSON.parse(saved);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
@@ -250,7 +260,7 @@ function renderLimits(month, now) {
       else limits[category] = minor;
       const next = { ...budgets, [month]: limits };
       try {
-        localStorage.setItem(BUDGET_KEY, JSON.stringify(next));
+        persistState(expenses, next);
       } catch {
         budgetStatus.textContent = "Не удалось сохранить лимит. Проверьте свободное место и доступ к хранилищу браузера.";
         return;
@@ -321,7 +331,7 @@ setInterval(render, 60000);
 
 function saveExpenses(next) {
   if (!storageReadable) return false;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
+  try { persistState(next, budgets); }
   catch { status.textContent = "Не удалось сохранить траты. Проверьте доступ к хранилищу браузера."; return false; }
   expenses = next;
   return true;
@@ -384,3 +394,68 @@ function changeMonth(month) {
 }
 document.querySelector("#selected-month").addEventListener("change", event => changeMonth(event.target.value));
 document.querySelector("#current-month").addEventListener("click", () => changeMonth(localDate(new Date()).slice(0, 7)));
+
+function validExpenses(items) {
+  return Array.isArray(items) && items.every(item => item && Number.isSafeInteger(item.minor) && item.minor > 0 && categories.includes(item.category) && typeof item.date === "string" && validDate(item.date) && typeof item.comment === "string");
+}
+function validBudgets(items) {
+  return items && typeof items === "object" && !Array.isArray(items) && Object.entries(items).every(([month, limits]) => month.length === 7 && validDate(month + "-01") && limits && typeof limits === "object" && !Array.isArray(limits) && Object.entries(limits).every(([category, minor]) => categories.includes(category) && Number.isSafeInteger(minor) && minor > 0));
+}
+function validBackup(data) { return data && data.version === 1 && validExpenses(data.expenses) && validBudgets(data.budgets); }
+function makeBackup(items = expenses, limits = budgets) { return { version: 1, expenses: items, budgets: limits }; }
+function persistState(items, limits) {
+  // Если старое хранилище частично повреждено, не затираем его новым снимком.
+  if (!budgetReadable && limits === budgets) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); return; }
+  if (!storageReadable && items === expenses) { localStorage.setItem(BUDGET_KEY, JSON.stringify(limits)); return; }
+  localStorage.setItem(DATA_KEY, JSON.stringify(makeBackup(items, limits)));
+}
+let pendingImport = null;
+let importRequest = 0;
+function cancelImport() {
+  importRequest++;
+  pendingImport = null;
+  document.querySelector("#import-file").value = "";
+  document.querySelector("#import-preview").hidden = true;
+}
+function previewBackup(data) {
+  if (!validBackup(data)) throw new Error("Invalid backup");
+  pendingImport = { version: 1, expenses: data.expenses.map(({minor, category, date, comment}) => ({minor, category, date, comment})), budgets: Object.fromEntries(Object.entries(data.budgets).map(([month, limits]) => [month, {...limits}])) };
+  document.querySelector("#import-description").textContent = "В копии: трат — " + pendingImport.expenses.length + ", месяцев бюджета — " + Object.keys(pendingImport.budgets).length + ".";
+  document.querySelector("#import-preview").hidden = false;
+}
+document.querySelector("#export-data").addEventListener("click", () => {
+  const message = document.querySelector("#backup-status");
+  if (!storageReadable || !budgetReadable) { message.textContent = "Не удалось прочитать все данные. Неполная копия не создана."; return; }
+  const url = URL.createObjectURL(new Blob([JSON.stringify(makeBackup(), null, 2)], {type: "application/json"}));
+  const link = document.createElement("a");
+  link.href = url; link.download = "rashody-" + localDate(new Date()) + ".json";
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  message.textContent = "Копия подготовлена. Проверьте папку загрузок.";
+});
+document.querySelector("#import-file").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  cancelImport();
+  const request = importRequest;
+  const message = document.querySelector("#backup-status");
+  message.textContent = "";
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { message.textContent = "Выберите копию размером до 10 МБ."; return; }
+  try {
+    const data = JSON.parse(await file.text());
+    if (request !== importRequest) return;
+    previewBackup(data);
+  } catch { if (request === importRequest) message.textContent = "Не удалось прочитать копию. Нужен JSON этой страницы с корректными суммами, датами и бюджетами."; }
+});
+document.querySelector("#cancel-import").addEventListener("click", cancelImport);
+document.querySelector("#confirm-import").addEventListener("click", () => {
+  if (!pendingImport) return;
+  try { persistState(pendingImport.expenses, pendingImport.budgets); }
+  catch { document.querySelector("#backup-status").textContent = "Не удалось восстановить копию. Текущие данные не изменены."; return; }
+  expenses = pendingImport.expenses; budgets = pendingImport.budgets;
+  storageReadable = budgetReadable = true;
+  cancelEdit(); clearUndo(); cancelImport(); budgetMonth = "";
+  status.textContent = budgetStatus.textContent = "";
+  render();
+  document.querySelector("#backup-status").textContent = "Расходы и бюджеты восстановлены.";
+});
