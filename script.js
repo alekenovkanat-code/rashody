@@ -98,6 +98,7 @@ function render() {
       : `Осталось ${formatTotal(balance)}`;
   }
   document.querySelector("#total").textContent = formatTotal(total);
+  renderDashboard(month, total, budgetTotal, limits.length);
   const categoryTotals = document.querySelector("#category-totals");
   categoryTotals.replaceChildren();
   for (const [category, amount] of totals) {
@@ -106,7 +107,21 @@ function render() {
     label.textContent = category === "Жилье" ? "Дом" : category;
     const value = document.createElement("dd");
     value.textContent = formatTotal(amount);
-    row.append(label, value);
+    const share = total > 0n ? Number(amount * 1000n / total) / 10 : 0;
+    const percent = document.createElement("span");
+    percent.className = "category-share";
+    percent.textContent = money.format(share) + "%";
+    value.append(percent);
+    const track = document.createElement("div");
+    track.className = "category-track";
+    track.setAttribute("aria-hidden", "true");
+    const fill = document.createElement("span");
+    fill.className = "category-fill";
+    const colors = ["#f48e88", "#809cff", "#74d7b0", "#baa3ff"];
+    fill.style.setProperty("--share", share + "%");
+    fill.style.setProperty("--category-color", colors[categories.indexOf(category)]);
+    track.append(fill);
+    row.append(label, value, track);
     categoryTotals.append(row);
   }
   document.querySelector("#month-label").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(periodDate);
@@ -526,3 +541,73 @@ function syncStorage() {
   }
 }
 window.addEventListener("storage", event => { if (event.key === null || [DATA_KEY, STORAGE_KEY, BUDGET_KEY].includes(event.key)) syncStorage(); });
+
+function renderDashboard(month, total, budgetTotal, limitCount) {
+  const monthExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month);
+  const balance = budgetTotal - total;
+  document.querySelector("#dashboard-budget").textContent = !budgetReadable ? "Недоступен" : limitCount ? formatTotal(budgetTotal) : "—";
+  document.querySelector("#dashboard-limits").textContent = budgetReadable ? "Лимитов задано: " + limitCount + " из 4" : "Проверьте хранилище";
+  document.querySelector("#dashboard-balance-title").textContent = limitCount && balance < 0n ? "Перерасход бюджета" : "Остаток бюджета";
+  const balanceValue = document.querySelector("#dashboard-balance");
+  balanceValue.textContent = budgetReadable && limitCount ? formatTotal(balance < 0n ? -balance : balance) : "—";
+  balanceValue.className = "kpi-value" + (budgetReadable && limitCount && balance < 0n ? " is-overrun" : "");
+  document.querySelector("#dashboard-balance-note").textContent = !budgetReadable ? "Проверьте хранилище" : !limitCount ? "Задайте лимиты категорий" : limitCount < 4 ? "Бюджет задан частично" : "По всем категориям";
+  document.querySelector("#dashboard-count").textContent = String(monthExpenses.length);
+  document.querySelector("#dashboard-average").textContent = "Средняя трата " + (monthExpenses.length ? formatTotal((total + BigInt(Math.floor(monthExpenses.length / 2))) / BigInt(monthExpenses.length)) : "—");
+  const days = new Date(month + "-01T12:00:00");
+  days.setMonth(days.getMonth() + 1, 0);
+  const daily = Array.from({length: days.getDate()}, () => 0n);
+  for (const expense of monthExpenses) daily[Number(expense.date.slice(8)) - 1] += BigInt(expense.minor);
+  renderDailyChart(daily, monthExpenses.length);
+}
+function renderDailyChart(daily, count) {
+  const container = document.querySelector("#daily-chart");
+  const description = document.querySelector("#daily-description");
+  container.replaceChildren();
+  if (!count) {
+    const empty = document.createElement("div");
+    empty.className = "chart-empty";
+    empty.textContent = "За этот месяц пока нет расходов";
+    container.append(empty);
+    description.textContent = "Добавьте трату, чтобы увидеть динамику.";
+    return;
+  }
+  const max = daily.reduce((a, b) => a > b ? a : b, 0n);
+  const peakDay = daily.findIndex(amount => amount === max) + 1;
+  const activeDays = daily.filter(amount => amount > 0n).length;
+  description.textContent = "Максимум за день: " + formatTotal(max) + " · " + peakDay + " число. Дней с тратами: " + activeDays + ".";
+  const ns = "http://www.w3.org/2000/svg";
+  const element = (name, attrs, text) => {
+    const node = document.createElementNS(ns, name);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const compact = window.matchMedia?.("(max-width: 520px)").matches;
+  const chartWidth = compact ? 340 : 640;
+  const svg = element("svg", {viewBox: "0 0 " + chartWidth + " 224", role: "img", "aria-labelledby": "daily-svg-title daily-svg-description"});
+  svg.append(element("title", {id: "daily-svg-title"}, "Расходы по дням месяца"));
+  svg.append(element("desc", {id: "daily-svg-description"}, daily.map((amount, index) => (index + 1) + ": " + formatTotal(amount)).join("; ")));
+  const left = compact ? 68 : 78, right = chartWidth - 18, top = 16, bottom = 192;
+  for (let step = 0; step <= 4; step++) {
+    const y = top + (bottom - top) * step / 4;
+    const value = max * BigInt(4 - step) / 4n;
+    const whole = value / 100n;
+    const label = whole >= 1000000000n ? money.format(Number(whole / 1000000n) / 1000) + " млрд" : whole >= 1000000n ? money.format(Number(whole / 1000n) / 1000) + " млн" : whole >= 1000n ? money.format(Number(whole) / 1000) + " тыс." : money.format(Number(value) / 100);
+    svg.append(element("line", {x1:left,x2:right,y1:y,y2:y,stroke:"#34405a","stroke-width":1,"stroke-dasharray":"3 4"}));
+    svg.append(element("text", {x:left-10,y:y+4,fill:"#a7b0c8","font-size":10,"text-anchor":"end"}, label));
+  }
+  const points = daily.map((value, index) => [left + index * (right - left) / (daily.length - 1), bottom - Number(value * 10000n / max) / 10000 * (bottom - top)]);
+  const line = points.map(([x,y], index) => (index ? "L" : "M") + x.toFixed(2) + "," + y.toFixed(2)).join(" ");
+  svg.append(element("path", {d:line + " L" + right + "," + bottom + " L" + left + "," + bottom + " Z",fill:"#f48e88","fill-opacity":.10}));
+  svg.append(element("path", {d:line,fill:"none",stroke:"#f48e88","stroke-width":2.5,"stroke-linejoin":"round","stroke-linecap":"round"}));
+  for (const day of [1,5,10,15,20,25,daily.length]) {
+    const x = left + (day - 1) * (right - left) / (daily.length - 1);
+    svg.append(element("text", {x,y:214,fill:"#a7b0c8","font-size":10,"text-anchor":"middle"}, String(day)));
+  }
+  const peak = points[peakDay - 1];
+  svg.append(element("circle", {cx:peak[0],cy:peak[1],r:4,fill:"#f48e88",stroke:"#202940","stroke-width":2}));
+  container.append(svg);
+}
+
+window.matchMedia?.("(max-width: 520px)").addEventListener("change", render);

@@ -1,18 +1,28 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Учет расходов</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="script.js" defer></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><title>Учет расходов — дашборд</title><link rel="stylesheet" href="styles.css"><script src="script.js" defer></script>
 </head>
 <body>
-  <main>
-    <header><p class="eyebrow">Личные финансы</p><h1>Учет расходов</h1><p>Записывайте траты — следите за месяцем.</p></header>
-    <nav class="month-controls" aria-label="Период"><div><label for="selected-month">Месяц</label><input id="selected-month" type="month" min="0001-01" max="9999-12"></div><button id="current-month" class="secondary" type="button">Текущий месяц</button></nav>
-    <section class="summary" aria-labelledby="month-title"><div><h2 id="month-title">За выбранный месяц</h2><p id="month-label"></p></div><p id="total" aria-live="polite">0 ₸</p></section>
-    <section class="card" aria-labelledby="form-title">
+<a class="skip-link" href="#overview">К содержимому</a>
+<aside class="sidebar">
+<a class="brand" href="#overview"><span class="brand-mark" aria-hidden="true">▥</span>Расходы<span class="brand-dot">.</span></a><p class="sidebar-caption">Личные финансы</p>
+<nav class="section-nav" aria-label="Разделы"><a href="#overview"><span aria-hidden="true">▦</span> Обзор месяца</a><a href="#add-expense"><span aria-hidden="true">＋</span> Добавить трату</a><a href="#history-section"><span aria-hidden="true">≡</span> История</a><a href="#budget-section"><span aria-hidden="true">◎</span> Бюджет</a><a href="#backup-section"><span aria-hidden="true">↓</span> Резервная копия</a></nav>
+<nav class="month-controls" aria-label="Период"><p class="sidebar-caption">Период отчета</p><label for="selected-month">Месяц</label><input id="selected-month" type="month" min="0001-01" max="9999-12"><button id="current-month" class="secondary" type="button">Текущий месяц</button></nav>
+<div class="privacy-note"><span class="privacy-dot" aria-hidden="true"></span> Только на устройстве<p>Ваши данные остаются<br>в этом браузере</p></div>
+</aside>
+<main id="overview">
+<header class="page-header"><div><p class="eyebrow">Обзор финансов</p><h1>Бюджет и расходы</h1><p id="month-label"></p></div><a class="button-link" href="#add-expense">＋ Добавить трату</a></header>
+<div class="kpi-grid" aria-label="Показатели месяца">
+<section class="kpi kpi-coral" aria-labelledby="month-title"><h2 id="month-title">Расходы за месяц</h2><p id="total" class="kpi-value" aria-live="polite">0 ₸</p><span class="kpi-note">Все категории</span><span class="kpi-accent"></span></section>
+<section class="kpi kpi-blue"><h2>Плановый бюджет</h2><p id="dashboard-budget" class="kpi-value">—</p><span id="dashboard-limits" class="kpi-note">Лимиты не заданы</span><span class="kpi-accent"></span></section>
+<section class="kpi kpi-green"><h2 id="dashboard-balance-title">Остаток бюджета</h2><p id="dashboard-balance" class="kpi-value">—</p><span id="dashboard-balance-note" class="kpi-note">Задайте лимиты категорий</span><span class="kpi-accent"></span></section>
+<section class="kpi kpi-violet"><h2>Количество трат</h2><p id="dashboard-count" class="kpi-value">0</p><span id="dashboard-average" class="kpi-note">Средняя трата —</span><span class="kpi-accent"></span></section>
+</div>
+<div class="dashboard-grid">
+<section class="card daily-card" aria-labelledby="daily-title"><div class="panel-heading"><div><h2 id="daily-title">Динамика расходов</h2><p class="panel-subtitle">По дням выбранного месяца</p></div><span class="legend"><i></i> Расходы</span></div><div id="daily-chart" class="daily-chart"></div><p id="daily-description" class="chart-description"></p></section>
+<section class="card category-summary" aria-labelledby="category-title"><div class="panel-heading"><div><h2 id="category-title">Структура расходов</h2><p class="panel-subtitle">Сумма и доля категории</p></div></div><dl id="category-totals" aria-live="polite"></dl></section>
+    <section class="card expense-form-card" id="add-expense" aria-labelledby="form-title">
       <h2 id="form-title">Добавить трату</h2>
       <form id="expense-form" novalidate>
         <div class="fields">
@@ -25,11 +35,9 @@
         <p id="status" role="status"></p>
       </form>
     </section>
-    <section class="card category-summary" aria-labelledby="category-title"><h2 id="category-title">По категориям за месяц</h2><dl id="category-totals" aria-live="polite"></dl></section>
-    <section class="card budget" aria-labelledby="budget-title"><h2 id="budget-title">Бюджет месяца</h2><p id="budget-month"></p><div class="budget-summary" aria-live="polite"><p id="budget-total"></p><p id="budget-count"></p><p id="budget-spent"></p><p id="budget-remaining" hidden></p></div><button id="copy-budget" class="secondary" type="button">Взять из прошлого месяца</button><div id="budget-limits"></div><p id="budget-status" role="status"></p></section>
-    <section class="card" aria-labelledby="list-title"><h2 id="list-title">Траты за месяц</h2><div class="history-filters"><div><label for="search-expenses">Поиск по комментарию</label><input id="search-expenses" type="search" placeholder="Например, такси"></div><div><label for="filter-category">Категория</label><select id="filter-category"><option value="">Все категории</option><option value="Еда">Еда</option><option value="Транспорт">Транспорт</option><option value="Жилье">Дом</option><option value="Другое">Другое</option></select></div></div><button id="reset-filters" class="secondary" type="button">Сбросить фильтры</button><p id="found-total" role="status"></p><p id="empty">Пока нет трат. Добавьте первую.</p><div id="undo-panel" hidden><p>Трата удалена.</p><button id="undo-delete" class="secondary" type="button">Отменить удаление</button></div><ul id="expenses"></ul></section>
-    <section class="card backup" aria-labelledby="backup-title"><h2 id="backup-title">Резервная копия</h2><p>Расходы и бюджеты всех месяцев в одном файле.</p><button id="export-data" class="secondary" type="button">Скачать копию</button><label for="import-file">Восстановить из файла</label><input id="import-file" type="file" accept=".json,application/json"><div id="import-preview" hidden><p id="import-description"></p><p>Все текущие траты и бюджеты будут заменены.</p><button id="confirm-import" type="button">Заменить данные из копии</button><button id="cancel-import" class="secondary" type="button">Отмена</button></div><p id="backup-status" role="status"></p></section>
-    <footer>Данные хранятся только в этом браузере.</footer>
-  </main>
-</body>
-</html>
+
+    <section class="card history-card" id="history-section" aria-labelledby="list-title"><h2 id="list-title">Траты за месяц</h2><div class="history-filters"><div><label for="search-expenses">Поиск по комментарию</label><input id="search-expenses" type="search" placeholder="Например, такси"></div><div><label for="filter-category">Категория</label><select id="filter-category"><option value="">Все категории</option><option value="Еда">Еда</option><option value="Транспорт">Транспорт</option><option value="Жилье">Дом</option><option value="Другое">Другое</option></select></div></div><button id="reset-filters" class="secondary" type="button">Сбросить фильтры</button><p id="found-total" role="status"></p><p id="empty">Пока нет трат. Добавьте первую.</p><div id="undo-panel" hidden><p>Трата удалена.</p><button id="undo-delete" class="secondary" type="button">Отменить удаление</button></div><ul id="expenses"></ul></section>
+    <section class="card budget" id="budget-section" aria-labelledby="budget-title"><h2 id="budget-title">Бюджет месяца</h2><p id="budget-month"></p><div class="budget-summary" aria-live="polite"><p id="budget-total"></p><p id="budget-count"></p><p id="budget-spent"></p><p id="budget-remaining" hidden></p></div><button id="copy-budget" class="secondary" type="button">Взять из прошлого месяца</button><div id="budget-limits"></div><p id="budget-status" role="status"></p></section>
+    <section class="card backup" id="backup-section" aria-labelledby="backup-title"><h2 id="backup-title">Резервная копия</h2><p>Расходы и бюджеты всех месяцев в одном файле.</p><button id="export-data" class="secondary" type="button">Скачать копию</button><label for="import-file">Восстановить из файла</label><input id="import-file" type="file" accept=".json,application/json"><div id="import-preview" hidden><p id="import-description"></p><p>Все текущие траты и бюджеты будут заменены.</p><button id="confirm-import" type="button">Заменить данные из копии</button><button id="cancel-import" class="secondary" type="button">Отмена</button></div><p id="backup-status" role="status"></p></section>
+</div><footer>Учет расходов <span>Локальное хранение · Без отправки данных</span></footer>
+</main></body></html>
