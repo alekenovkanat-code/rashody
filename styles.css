@@ -17,6 +17,9 @@ a { color: inherit; text-decoration: none; }
 .month-controls { margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--border); }
 .month-controls .sidebar-caption { margin-bottom: 18px; }
 .month-controls button { margin-top: 10px; font-size: 12px; }
+.month-step { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+.month-controls .month-step button { margin: 0; min-width: 44px; }
+.month-controls > input, .month-step, .month-controls > button { grid-column: 1/-1; }
 .privacy-note { margin-top: auto; padding-top: 48px; color: #c4ccdc; font-size: 11px; }
 .privacy-note p { color: #929fb9; font-size: 11px; line-height: 1.8; margin-bottom: 0; }
 .privacy-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 5px; }

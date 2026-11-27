@@ -59,6 +59,8 @@ function render() {
   const month = selectedMonth || localDate(now).slice(0, 7);
   const periodDate = new Date(`${month}-01T12:00:00`);
   document.querySelector("#selected-month").value = month;
+  document.querySelector("#previous-month").disabled = month === "0001-01";
+  document.querySelector("#next-month").disabled = month === "9999-12";
   renderLimits(month, periodDate);
   const totals = new Map(categories.map(category => [category, 0n]));
   for (const expense of expenses) {
@@ -463,6 +465,16 @@ function changeMonth(month) {
   render();
   status.textContent = "Показан выбранный месяц.";
 }
+function shiftMonth(direction) {
+  const month = selectedMonth || localDate(new Date()).slice(0, 7);
+  const [year, number] = month.split("-").map(Number);
+  const index = (year - 1) * 12 + number - 1 + direction;
+  if (index < 0 || index >= 9999 * 12) return;
+  const target = String(Math.floor(index / 12) + 1).padStart(4, "0") + "-" + String(index % 12 + 1).padStart(2, "0");
+  changeMonth(target);
+}
+document.querySelector("#previous-month").addEventListener("click", () => shiftMonth(-1));
+document.querySelector("#next-month").addEventListener("click", () => shiftMonth(1));
 document.querySelector("#selected-month").addEventListener("change", event => changeMonth(event.target.value));
 document.querySelector("#current-month").addEventListener("click", () => changeMonth(localDate(new Date()).slice(0, 7)));
 
