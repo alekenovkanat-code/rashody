@@ -127,6 +127,16 @@ function render() {
   document.querySelector("#month-label").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(periodDate);
   document.querySelector("#report-month").textContent = document.querySelector("#month-label").textContent;
   document.querySelector("#report-total").textContent = `Итого: ${formatTotal(total)}`;
+  const topCategories = [...totals].filter(([, amount]) => amount > 0n)
+    .sort((a, b) => a[1] === b[1] ? 0 : a[1] > b[1] ? -1 : 1).slice(0, 3);
+  const reportCategories = document.querySelector("#report-categories");
+  reportCategories.replaceChildren();
+  document.querySelector("#report-empty").hidden = topCategories.length > 0;
+  for (const [category, amount] of topCategories) {
+    const item = document.createElement("li");
+    item.textContent = `${category === "Жилье" ? "Дом" : category} — ${formatTotal(amount)}`;
+    reportCategories.append(item);
+  }
   const query = document.querySelector("#search-expenses").value.trim().toLocaleLowerCase("ru-RU");
   const filterCategory = document.querySelector("#filter-category").value;
   const visibleExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month && (!filterCategory || expense.category === filterCategory) && (!query || expense.comment.toLocaleLowerCase("ru-RU").includes(query))).sort((a, b) => b.date.localeCompare(a.date));
