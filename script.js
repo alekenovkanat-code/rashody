@@ -137,6 +137,11 @@ function render() {
     item.textContent = `${category === "Жилье" ? "Дом" : category} — ${formatTotal(amount)}`;
     reportCategories.append(item);
   }
+  const previous = previousMonth(month);
+  const previousTotal = expenses.filter(expense => expense.date.slice(0, 7) === previous)
+    .reduce((sum, expense) => sum + BigInt(expense.minor), 0n);
+  const difference = total - previousTotal;
+  document.querySelector("#report-comparison").textContent = `Прошлый месяц: ${formatTotal(previousTotal)}. ${difference === 0n ? "Без изменений" : `На ${formatTotal(difference < 0n ? -difference : difference)} ${difference > 0n ? "больше" : "меньше"}`}.`;
   const query = document.querySelector("#search-expenses").value.trim().toLocaleLowerCase("ru-RU");
   const filterCategory = document.querySelector("#filter-category").value;
   const visibleExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month && (!filterCategory || expense.category === filterCategory) && (!query || expense.comment.toLocaleLowerCase("ru-RU").includes(query))).sort((a, b) => b.date.localeCompare(a.date));
