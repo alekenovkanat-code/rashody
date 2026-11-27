@@ -35,9 +35,9 @@ function validDate(value) {
 function parseAmount(value) {
   const normalized = value.trim().replace(/[\s\u00a0\u202f]/g, "");
   if (!/^\d+(?:[.,]\d{1,2})?$/.test(normalized)) return null;
-  const amount = Number(normalized.replace(",", "."));
-  const minor = Math.round(amount * 100);
-  return Number.isSafeInteger(minor) && minor > 0 ? minor : null;
+  const [whole, fraction = ""] = normalized.split(/[.,]/);
+  const minor = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
+  return minor > 0n && minor <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(minor) : null;
 }
 
 function formatMoney(minor) {
