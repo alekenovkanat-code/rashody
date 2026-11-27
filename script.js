@@ -41,7 +41,7 @@ function parseAmount(value) {
 }
 
 function formatMoney(minor) {
-  return `${money.format(minor / 100).replace(/[\u00a0\u202f]/g, " ")} ₸`;
+  return formatTotal(BigInt(minor));
 }
 
 function formatTotal(total) {
@@ -296,7 +296,7 @@ function renderLimits(month, now) {
     function refresh() {
       const minor = budgets[month]?.[category];
       value.textContent = minor === undefined ? "Лимит не задан" : `Лимит: ${formatTotal(BigInt(minor))}`;
-      input.value = minor === undefined ? "" : money.format(minor / 100).replace(/[\u00a0\u202f]/g, " ");
+      input.value = minor === undefined ? "" : formatMoney(minor).replace(/ ₸$/, "");
       remove.hidden = minor === undefined;
     }
     function persist(minor) {
@@ -399,7 +399,7 @@ function cancelEdit() {
 }
 function startEdit(expense) {
   editingExpense = expense;
-  amountInput.value = money.format(expense.minor / 100);
+  amountInput.value = formatMoney(expense.minor).replace(/ ₸$/, "");
   categoryInput.value = expense.category;
   dateInput.value = expense.date;
   commentInput.value = expense.comment;
