@@ -87,7 +87,7 @@ li { padding: 16px 0; border-top: 1px solid var(--border); }
 .expense-heading strong { text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .expense-date { display: block; font-size: 10px; color: var(--muted); margin-top: 5px; }
 .expense-comment { margin: 8px 0 0; font-size: 12px; color: #bac4d9; overflow-wrap: anywhere; white-space: pre-wrap; }
-.expense-actions { display: flex; gap: 8px; }
+.expense-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .expense-actions button { width: auto; margin-top: 10px; font-size: 11px; padding: 8px 12px; }
 .report-card, .budget, .backup { grid-column: 1/-1; }
 .budget h2 { margin-bottom: 6px; }

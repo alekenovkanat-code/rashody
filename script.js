@@ -189,7 +189,7 @@ function render() {
     }
     const actions = document.createElement("div");
     actions.className = "expense-actions";
-    for (const [title, action] of [["Изменить", () => startEdit(expense)], ["Удалить", () => deleteExpense(expense)]]) {
+    for (const [title, action] of [["Повторить", () => repeatExpense(expense)], ["Изменить", () => startEdit(expense)], ["Удалить", () => deleteExpense(expense)]]) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "secondary";
@@ -408,6 +408,20 @@ function startEdit(expense) {
   document.querySelector("#save-expense").textContent = "Сохранить изменения";
   document.querySelector("#cancel-edit").hidden = false;
   status.textContent = "";
+  amountInput.focus();
+}
+function repeatExpense(expense) {
+  if (!storageReadable) return;
+  selectedMonth = null;
+  cancelEdit();
+  document.querySelector("#search-expenses").value = "";
+  document.querySelector("#filter-category").value = "";
+  amountInput.value = formatMoney(expense.minor).replace(/ ₸$/, "");
+  categoryInput.value = expense.category;
+  dateInput.value = localDate(new Date());
+  commentInput.value = expense.comment;
+  render();
+  status.textContent = "Форма заполнена для новой траты. Проверьте данные и нажмите „Добавить“";
   amountInput.focus();
 }
 function clearUndo() {
