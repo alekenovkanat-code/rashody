@@ -142,6 +142,13 @@ function render() {
     .reduce((sum, expense) => sum + BigInt(expense.minor), 0n);
   const difference = total - previousTotal;
   document.querySelector("#report-comparison").textContent = `Прошлый месяц: ${formatTotal(previousTotal)}. ${difference === 0n ? "Без изменений" : `На ${formatTotal(difference < 0n ? -difference : difference)} ${difference > 0n ? "больше" : "меньше"}`}.`;
+  document.querySelector("#report-text").value = [
+    `Отчёт за ${document.querySelector("#report-month").textContent}`,
+    document.querySelector("#report-total").textContent,
+    "Самые затратные категории:",
+    ...(topCategories.length ? [...reportCategories.children].map(item => item.textContent) : ["Расходов нет."]),
+    document.querySelector("#report-comparison").textContent
+  ].join("\n");
   const query = document.querySelector("#search-expenses").value.trim().toLocaleLowerCase("ru-RU");
   const filterCategory = document.querySelector("#filter-category").value;
   const visibleExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month && (!filterCategory || expense.category === filterCategory) && (!query || expense.comment.toLocaleLowerCase("ru-RU").includes(query))).sort((a, b) => b.date.localeCompare(a.date));
@@ -515,6 +522,16 @@ function previousMonth(month) {
   const [year, number] = month.split("-").map(Number);
   return number === 1 ? String(year - 1).padStart(4, "0") + "-12" : String(year).padStart(4, "0") + "-" + String(number - 1).padStart(2, "0");
 }
+document.querySelector("#copy-report").addEventListener("click", async () => {
+  const copyStatus = document.querySelector("#report-copy-status");
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+    await navigator.clipboard.writeText(document.querySelector("#report-text").value);
+    copyStatus.textContent = "Отчёт скопирован.";
+  } catch {
+    copyStatus.textContent = "Не удалось скопировать. Выделите текст отчёта и скопируйте вручную.";
+  }
+});
 document.querySelector("#copy-budget").addEventListener("click", () => {
   if (!budgetReadable) { budgetStatus.textContent = "Сначала восстановите доступ к данным бюджета."; return; }
   const month = selectedMonth || localDate(new Date()).slice(0, 7);

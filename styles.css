@@ -62,15 +62,15 @@ p { line-height: 1.5; }
 .fields > div, .history-filters > div { min-width: 0; }
 label { display: block; font-size: 12px; color: #bac4d9; font-weight: 500; margin-bottom: 7px; }
 label span { font-size: 10px; color: var(--muted); font-weight: 400; }
-input, select, button { width: 100%; min-height: 44px; font: inherit; border-radius: 5px; }
-input, select { min-width: 0; max-width: 100%; border: 1px solid #45516d; background: #192238; color: #f0f3fb; padding: 11px 12px; font-size: 13px; }
+input, select, textarea, button { width: 100%; min-height: 44px; font: inherit; border-radius: 5px; }
+input, select, textarea { min-width: 0; max-width: 100%; border: 1px solid #45516d; background: #192238; color: #f0f3fb; padding: 11px 12px; font-size: 13px; }
 input::placeholder { color: #8896b1; opacity: 1; }
 button { margin-top: 16px; padding: 11px 15px; background: #809cff; color: #111a2c; font-size: 12px; border: 1px solid transparent; font-weight: 650; cursor: pointer; }
 button:hover { background: #a2b6ff; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .secondary, .limit-remove { background: #2d3853; color: #d9e1f2; border-color: #46526c; }
 .secondary:hover, .limit-remove:hover { background: #3a4868; }
-a:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid #a6b9ff; outline-offset: 3px; }
+a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid #a6b9ff; outline-offset: 3px; }
 [aria-invalid="true"] { border-color: var(--coral); }
 .error { color: #ffaaa3; margin: 6px 0 0; font-size: 12px; }
 .error:empty, #status:empty, #budget-status:empty, #backup-status:empty { display: none; }
