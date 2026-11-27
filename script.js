@@ -4,6 +4,9 @@ const STORAGE_KEY = "rashody.expenses.v1";
 const categories = ["Еда", "Транспорт", "Жилье", "Другое"];
 const BUDGET_KEY = "rashody.budgets.v1";
 const DATA_KEY = "rashody.data.v1";
+const BACKUP_META_KEY = "rashody.backup-meta.v1";
+let dataRevision = null;
+let backupMetaError = "";
 let budgets = {};
 let budgetReadable = true;
 let budgetMonth = "";
@@ -51,6 +54,7 @@ function formatTotal(total) {
 }
 
 function render() {
+  renderBackupReminder();
   const now = new Date();
   const month = selectedMonth || localDate(now).slice(0, 7);
   const periodDate = new Date(`${month}-01T12:00:00`);
@@ -207,7 +211,7 @@ let savedSnapshot = null;
 let snapshotBroken = false;
 try {
   const raw = localStorage.getItem(DATA_KEY);
-  if (raw !== null) { savedSnapshot = JSON.parse(raw); if (!validBackup(savedSnapshot)) throw new Error("Invalid snapshot"); }
+  if (raw !== null) { savedSnapshot = JSON.parse(raw); if (!validBackup(savedSnapshot)) throw new Error("Invalid snapshot"); dataRevision = typeof savedSnapshot.revision === "string" ? savedSnapshot.revision : null; }
 } catch { snapshotBroken = true; }
 
 try {
@@ -475,8 +479,43 @@ function persistState(items, limits, replaceAll = false) {
   // Если старое хранилище частично повреждено, не затираем его новым снимком.
   if (!replaceAll && !budgetReadable && limits === budgets) { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); storageVersion = readStorageVersion(); return; }
   if (!replaceAll && !storageReadable && items === expenses) { localStorage.setItem(BUDGET_KEY, JSON.stringify(limits)); storageVersion = readStorageVersion(); return; }
-  localStorage.setItem(DATA_KEY, JSON.stringify(makeBackup(items, limits)));
+  // Ревизия сохраняется атомарно с данными; в скачиваемый JSON она не входит.
+  const revision = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+  localStorage.setItem(DATA_KEY, JSON.stringify({ ...makeBackup(items, limits), revision }));
+  dataRevision = revision;
   storageVersion = readStorageVersion();
+}
+
+function readBackupMeta() {
+  const raw = localStorage.getItem(BACKUP_META_KEY);
+  if (raw === null) return null;
+  const meta = JSON.parse(raw);
+  if (!meta || typeof meta.preparedAt !== "string" || !Number.isFinite(Date.parse(meta.preparedAt)) ||
+      !(meta.revision === null || typeof meta.revision === "string")) throw new Error("Invalid backup metadata");
+  return meta;
+}
+
+function renderBackupReminder() {
+  const last = document.querySelector("#backup-last");
+  const reminder = document.querySelector("#backup-reminder");
+  let meta;
+  try { meta = readBackupMeta(); }
+  catch {
+    last.textContent = "Дата последней копии неизвестна";
+    reminder.hidden = false;
+    reminder.textContent = "Не удалось прочитать отметку копии. Состояние копии неизвестно; скачайте новую.";
+    return;
+  }
+  last.textContent = meta ? "Последняя подготовка: " + new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "short", timeStyle: "short"
+  }).format(new Date(meta.preparedAt)) : "Копия ещё не создавалась";
+  const hasData = expenses.length > 0 || Object.values(budgets).some(limits => Object.keys(limits).length > 0);
+  const unavailable = !storageReadable || !budgetReadable;
+  reminder.textContent = backupMetaError || (unavailable
+    ? "Не удалось прочитать все данные. Состояние копии неизвестно; восстановите данные перед подготовкой копии."
+    : !meta ? "Скачайте копию, чтобы сохранить историю вне браузера"
+    : "Есть изменения после последней копии");
+  reminder.hidden = !backupMetaError && !unavailable && (!hasData || (meta !== null && meta.revision === dataRevision));
 }
 let pendingImport = null;
 let importRequest = 0;
@@ -493,6 +532,7 @@ function previewBackup(data) {
   document.querySelector("#import-preview").hidden = false;
 }
 document.querySelector("#export-data").addEventListener("click", () => {
+  syncStorage();
   const message = document.querySelector("#backup-status");
   if (!storageReadable || !budgetReadable) { message.textContent = "Не удалось прочитать все данные. Неполная копия не создана."; return; }
   const url = URL.createObjectURL(new Blob([JSON.stringify(makeBackup(), null, 2)], {type: "application/json"}));
@@ -501,6 +541,13 @@ document.querySelector("#export-data").addEventListener("click", () => {
   document.body.append(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   message.textContent = "Копия подготовлена. Проверьте папку загрузок.";
+  try {
+    localStorage.setItem(BACKUP_META_KEY, JSON.stringify({ preparedAt: new Date().toISOString(), revision: dataRevision }));
+    backupMetaError = "";
+  } catch {
+    backupMetaError = "Не удалось сохранить отметку копии. Состояние копии неизвестно; проверьте папку загрузок.";
+  }
+  renderBackupReminder();
 });
 document.querySelector("#import-file").addEventListener("change", async event => {
   const file = event.target.files[0];
@@ -569,13 +616,14 @@ function readStorageVersion() {
 }
 function syncStorage() {
   const version = readStorageVersion();
-  if (version === storageVersion) return;
+  if (version === storageVersion) { renderBackupReminder(); return; }
   try {
     if (version === null) throw new Error("Storage unavailable");
     const [snapshot, oldExpenses, oldBudgets] = JSON.parse(version);
     const data = snapshot !== null ? JSON.parse(snapshot) : {version: 1, expenses: JSON.parse(oldExpenses || "[]"), budgets: JSON.parse(oldBudgets || "{}")};
     if (!validBackup(data)) throw new Error("Invalid storage");
     expenses = data.expenses; budgets = data.budgets;
+    dataRevision = typeof data.revision === "string" ? data.revision : null;
     storageReadable = budgetReadable = true;
     cancelEdit(); clearUndo(); cancelImport(); budgetMonth = "";
     storageVersion = version;
@@ -588,7 +636,12 @@ function syncStorage() {
     status.textContent = "Хранилище изменилось, но прочитать его не удалось. Сохранение отключено; восстановите корректную копию.";
   }
 }
-window.addEventListener("storage", event => { if (event.key === null || [DATA_KEY, STORAGE_KEY, BUDGET_KEY].includes(event.key)) syncStorage(); });
+window.addEventListener("storage", event => {
+  if (event.key === null || [DATA_KEY, STORAGE_KEY, BUDGET_KEY, BACKUP_META_KEY].includes(event.key)) {
+    if (event.key === BACKUP_META_KEY || event.key === null) backupMetaError = "";
+    syncStorage();
+  }
+});
 
 function renderDashboard(month, total, budgetTotal, limitCount) {
   const monthExpenses = expenses.filter(expense => expense.date.slice(0, 7) === month);

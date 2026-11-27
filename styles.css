@@ -109,6 +109,7 @@ summary { min-height: 44px; padding: 14px 0; cursor: pointer; font-size: 11px; c
 .limit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .limit-actions button { flex: 1 1 100px; margin-top: 8px; padding: 10px 6px; font-size: 11px; }
 .backup > p { color: var(--muted); font-size: 12px; }
+.backup #backup-reminder { color: #ffd59a; overflow-wrap: anywhere; }
 .backup > button { width: auto; margin: 0 0 18px; }
 .backup input { max-width: 500px; font-size: 12px; }
 #import-preview { max-width: 600px; padding-top: 15px; font-size: 13px; }
